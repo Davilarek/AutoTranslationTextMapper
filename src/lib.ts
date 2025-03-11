@@ -3,6 +3,8 @@ import { KeyUtil } from "./keys.ts";
 import { diff_text, djb2Hash, get_deferred } from "./util.ts";
 import { removeStopwords } from "stopword";
 
+import { parse } from "@babel/parser";
+import { jsxText, type JSXText, type Node, type Statement } from "@babel/types";
 export enum AutomaticNamingMode {
     None = 0,
     Numeric = 1,
@@ -20,42 +22,44 @@ export type Options = {
     key_length_limit: number;
 };
 
-// const default_regex = /\s*?([\w\s!.łóćęążźć,śń]+?)\s*?</g;
-// const default_regex = /\s*?([\w\s!.łóćęążźć,śń]+?)({" "})*?\s*?</g; // TODO: Enhance this
-const default_regex = /\s*?([A-Za-z\s!.łóćęążźć,śń]+?)({" "})*?\s*?</g; // TODO: Enhance this
-
-function split_into_JSX_blocks(input: string) {
-    const blocks: { block: string; start: number }[] = [];
-    let startIndex = 0;
-    let depth = 0;
-    let inJSX = false;
-    let inJSExpression = false;
-
-    for (let i = 0; i < input.length; i++) {
-        if (input[i] === '<' && !inJSX && !inJSExpression) {
-            inJSX = true;
-            depth++;
-        } else if (input[i] === '<' && inJSX && !inJSExpression) {
-            depth++;
-        } else if (input[i] === '>' && inJSX && !inJSExpression) {
-            depth--;
-            if (depth === 0) {
-                inJSX = false;
-                blocks.push({ block: input.substring(startIndex, i + 1), start: startIndex });
-                startIndex = i + 1;
+function find_in_ast(body: Statement[], type: Node, first: boolean) {
+    const final = [] as Node[];
+    const state = {
+        exit_now: false,
+    };
+    if (first) {
+        final.push = (...args: typeof final[number][]) => {
+            state.exit_now = true;
+            return Array.prototype.push.call(final, ...args);
+        };
+    }
+    for (let i = 0; i < body.length && !state.exit_now; i++) {
+        if (body[i].type == type.type) {
+            final.push(body[i]);
+            continue;
+        }
+        const keys = Object.keys(body[i]);
+        for (let key_index = 0; key_index < keys.length; key_index++) {
+            const current_key = keys[key_index];
+            if (body[i][current_key] !== null && typeof body[i][current_key] === "object" && typeof body[i][current_key].type === "string") {
+                const result = find_in_ast([body[i][current_key]], type, first);
+                if (result) {
+                    final.push(...[result].flat());
+                    continue;
+                }
             }
-        } else if (input[i] === '{' && inJSX) {
-            inJSExpression = true;
-        } else if (input[i] === '}' && inJSX) {
-            inJSExpression = false;
+            else {
+                if (Array.isArray(body[i][current_key])) {
+                    const result = find_in_ast(body[i][current_key], type, first);
+                    if (result) {
+                        final.push(...[result].flat());
+                        continue;
+                    }
+                }
+            }
         }
     }
-
-    if (startIndex < input.length) {
-        blocks.push({ block: input.substring(startIndex), start: startIndex });
-    }
-
-    return blocks;
+    return first ? final[0] : final;
 }
 
 const NEWLINE = "\n";
@@ -63,7 +67,6 @@ const FILLER = `${NEWLINE}${new Array(4).fill(" ").join("")}`;
 
 export async function execute(input: string, options: Options, lang_file_write_stream: WriteStream | null) { // write stream is null if output not specified
     const preloaded_lang = await (await import("stopword")).default[options.lang] as string[];
-    const jsx_blocks = split_into_JSX_blocks(input);
     const added_records = {} as { [key: string]: string };
     let modified_input = input;
     let counter = 0;
@@ -108,43 +111,45 @@ export async function execute(input: string, options: Options, lang_file_write_s
     };
     const replacements: { start: number; end: number; replacement: string }[] = [];
 
-    for (let index = 0; index < jsx_blocks.length; index++) {
-        const { block, start: block_start } = jsx_blocks[index];
-        let result: RegExpExecArray | null;
+    const ast = parse(input, {
+        sourceType: 'module',
+        plugins: ['jsx', 'typescript'],
+    });
 
-        while ((result = default_regex.exec(block)) !== null) {
-            if (result[1].trim().length === 0 || result[1].trim().length < 2) {
+    const text_nodes = find_in_ast(ast.program.body, jsxText(""), false) as JSXText[];
+    if (text_nodes.length > 0) {
+        for (let index = 0; index < text_nodes.length; index++) {
+            const node = text_nodes[index];
+            const text = node.value;
+
+            if (text.trim().length === 0 || text.trim().length < 2) {
                 continue;
             }
 
-            const text = result[1];
-            const match_start = result.index;
-            const match_end = match_start + result[0].length;
-
-            const absolute_start = block_start + match_start;
-            const absolute_end = block_start + match_end;
-
-            const full_match = result[0];
             let leading_whitespace = '';
-            for (let i = absolute_start; i < input.length; i++) {
+            for (let i = node.start!; i < input.length; i++) {
                 if (input[i] === ' ' || input[i] === '\t' || input[i] === '\n') {
                     leading_whitespace += input[i];
                 } else {
                     break;
                 }
             }
-            const trailing_whitespace = full_match.substring(full_match.indexOf(text) + text.length);
+            const trailing_whitespace = text.substring(text.indexOf(text.trim()) + text.trim().length);
             const calculated = await calculate_replacement_using_strategy(text);
             if (calculated == "-") {
                 counter++;
                 continue;
             }
-            const actual_replacemenet = options.replacement.replace("%name%", `"${calculated}"`);
+            const actual_replacement = options.replacement.replace("%name%", `"${calculated}"`);
             added_records[calculated] = text.trim();
-            console_log("Applied", actual_replacemenet);
-            const replacement = `${leading_whitespace}{${actual_replacemenet}}${trailing_whitespace}`;
+            console_log("Applied", actual_replacement);
 
-            replacements.push({ start: absolute_start, end: absolute_end, replacement });
+            const replacement = `${leading_whitespace}{${actual_replacement}}${trailing_whitespace}`;
+            replacements.push({
+                start: node.start!,
+                end: node.end!,
+                replacement
+            });
             counter++;
         }
     }

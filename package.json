@@ -13,9 +13,11 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.13.10",
-    "@types/stopword": "^2.0.3"
+    "@types/stopword": "^2.0.3",
+    "@babel/types": "^7.26.9"
   },
   "dependencies": {
+    "@babel/parser": "^7.26.9",
     "stopword": "^3.1.4"
   }
 }
