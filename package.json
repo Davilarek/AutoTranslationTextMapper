@@ -12,10 +12,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^22.13.10"
+    "@types/node": "^22.13.10",
+    "@types/stopword": "^2.0.3"
   },
   "dependencies": {
-    "@types/stopword": "^2.0.3",
     "stopword": "^3.1.4"
   }
 }
