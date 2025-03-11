@@ -17,6 +17,7 @@ export type Options = {
     output_path: string;
     lang: string;
     silent: boolean;
+    key_length_limit: number;
 };
 
 // const default_regex = /\s*?([\w\s!.łóćęążźć,śń]+?)\s*?</g;
@@ -75,8 +76,8 @@ export async function execute(input: string, options: Options, lang_file_write_s
         return x - Math.floor(x);
     }
 
-    const calculate_replacement_using_strategy = async (text_fragment: string) => {
-        switch (options.use_automatic_naming_mode) {
+    const calculate_replacement_using_strategy = async (text_fragment: string, mode: AutomaticNamingMode = options.use_automatic_naming_mode) => {
+        switch (mode) {
             case AutomaticNamingMode.Numeric: {
                 return "translation_key_" + Math.floor(random() * (counter + 2222));
             }
@@ -84,7 +85,7 @@ export async function execute(input: string, options: Options, lang_file_write_s
                 return await KeyUtil.ask("Context:\n\t" + text_fragment + "\nTranslation name (type \"-\" to skip):");
             }
             case AutomaticNamingMode.Stopword: {
-                return removeStopwords(
+                const res = removeStopwords(
                     text_fragment
                         .replace(/\r/g, "")
                         .replace(/\n/g, "")
@@ -93,11 +94,15 @@ export async function execute(input: string, options: Options, lang_file_write_s
                         .split(" ")
                         .map(x => x.trim()),
                     preloaded_lang
-                ).filter(x => x.length > 0).join("_")
+                ).filter(x => x.length > 0).filter((_, i) => i < options.key_length_limit).join("_")
                     .normalize("NFKD")
                     .replace(/[\u0300-\u036f]/g, "")
                     .replace(/ł/g, "l")
                     .replace(/[^A-Za-z\s_]/g, "");
+                if (res.length < 4) {
+                    return calculate_replacement_using_strategy(text_fragment, AutomaticNamingMode.None);
+                }
+                return res;
             }
         }
     };

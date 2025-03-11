@@ -92,7 +92,17 @@ const options_map = [
         result_key: "silent",
         param_count: 0,
         description: "If enabled, internal library will not print any logs to standard output.",
-    }
+    },
+    {
+        aliases: ["--keylen"],
+        result_key: "key_length_limit",
+        param_count: 1,
+        default: 99,
+        description: "Specifies the max length of generated keys. They will be cut off when limit is hit. (Counted in words)",
+        parse(...[arg, ...params]) {
+            return parseInt(params[0]);
+        }
+    },
 ] as Option[];
 
 function parser(arg: string, rest: string[]) {
