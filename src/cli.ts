@@ -85,7 +85,7 @@ const options_map = [
         result_key: "lang",
         param_count: 1,
         default: "eng",
-        description: "Specifies the language of input files.",
+        description: "Specifies the language of input files. Must be in ISO-639-3 format.",
     },
     {
         aliases: ["--quiet", "--silence"],
