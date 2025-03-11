@@ -1,5 +1,5 @@
 import * as process from "node:process";
-import { statSync, readdirSync, existsSync, readFileSync, WriteStream, createWriteStream } from "node:fs";
+import { statSync, readdirSync, existsSync, readFileSync, WriteStream, createWriteStream, writeFileSync } from "node:fs";
 import { Options, AutomaticNamingMode, execute } from "./lib.ts";
 import { get_deferred, readdir_recursively } from "./util.ts"
 import { basename } from "node:path";
@@ -208,7 +208,10 @@ async function entry() {
 
     for (let i = 0; i < targets.length; i++) {
         const file_content = readFileSync(targets[i], "utf8");
-        await execute(file_content, options, state.write_stream);
+        const new_file_content = await execute(file_content, options, state.write_stream);
+        if (options.write === true) {
+            writeFileSync(targets[i], new_file_content);
+        }
     }
     if (state.write_stream !== null) {
         const closed = get_deferred<Error | null | undefined>();
