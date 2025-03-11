@@ -20,7 +20,8 @@ export type Options = {
 };
 
 // const default_regex = /\s*?([\w\s!.łóćęążźć,śń]+?)\s*?</g;
-const default_regex = /\s*?([\w\s!.łóćęążźć,śń]+?)({" "})*?\s*?</g; // TODO: Enhance this
+// const default_regex = /\s*?([\w\s!.łóćęążźć,śń]+?)({" "})*?\s*?</g; // TODO: Enhance this
+const default_regex = /\s*?([A-Za-z\s!.łóćęążźć,śń]+?)({" "})*?\s*?</g; // TODO: Enhance this
 
 function split_into_JSX_blocks(input: string) {
     const blocks: { block: string; start: number }[] = [];
