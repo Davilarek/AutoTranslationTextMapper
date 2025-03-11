@@ -122,7 +122,7 @@ function parser(arg: string, rest: string[]) {
 }
 function print_help(what: string) {
     console.log(what);
-    console.log("Usage: [options] --output <output> <input>");
+    console.log("Usage: [options] --output <output lang file> <input file/directory>");
     console.log("Options:");
     let longest = 0;
     options_map.forEach(el => {
