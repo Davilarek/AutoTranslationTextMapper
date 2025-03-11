@@ -85,11 +85,15 @@ export async function execute(input: string, options: Options, lang_file_write_s
                 return "translation_key_" + Math.floor(random() * (counter + 2222));
             }
             case AutomaticNamingMode.None: {
-                return await KeyUtil.ask("Context:\n\t" + text_fragment + "\nTranslation name (type \"-\" to skip):");
+                return await KeyUtil.ask("Context:\n\t" + text_fragment + "\nTranslation name (type \"-\" to skip, \"?\" to autogenerate using numeric method):");
             }
             case AutomaticNamingMode.Stopword: {
                 const res = removeStopwords(
                     text_fragment
+                        .replace(/[0-9]/g, "")
+                        .replace(/\//g, "")
+                        .replace(/\$/g, "")
+                        .replace(/-/g, "")
                         .replace(/\r/g, "")
                         .replace(/\n/g, "")
                         .trim()
@@ -135,8 +139,11 @@ export async function execute(input: string, options: Options, lang_file_write_s
                 }
             }
             const trailing_whitespace = text.substring(text.indexOf(text.trim()) + text.trim().length);
-            const calculated = await calculate_replacement_using_strategy(text);
-            if (calculated == "-") {
+            let calculated = await calculate_replacement_using_strategy(text);
+            if (calculated == "?") {
+                calculated = await calculate_replacement_using_strategy(text, AutomaticNamingMode.Numeric);
+            }
+            else if (calculated == "-") {
                 counter++;
                 continue;
             }
