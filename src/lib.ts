@@ -1,6 +1,6 @@
 import { WriteStream } from "node:fs";
 import { KeyUtil } from "./keys.ts";
-import { diff_text, djb2Hash, get_deferred } from "./util.ts";
+import { diff_text, djb2Hash, escape_regexp, get_deferred } from "./util.ts";
 import { removeStopwords } from "stopword";
 
 import { parse } from "@babel/parser";
@@ -20,6 +20,8 @@ export type Options = {
     lang: string;
     silent: boolean;
     key_length_limit: number;
+    record_format: string;
+    check_for_collisions: boolean;
 };
 
 function find_in_ast(body: Statement[], type: Node, first: boolean) {
@@ -65,9 +67,32 @@ function find_in_ast(body: Statement[], type: Node, first: boolean) {
 const NEWLINE = "\n";
 const FILLER = `${NEWLINE}${new Array(4).fill(" ").join("")}`;
 
-export async function execute(input: string, options: Options, lang_file_write_stream: WriteStream | null) { // write stream is null if output not specified
+function parse_lang_file(format: string, lang_file_raw: string) {
+    const final = {} as { [key: string]: string };
+    const state = {
+        regular_expr: null as RegExp | null,
+        current: format,
+    };
+    // state.current = state.current.replace("%val%", "(.*?)");
+    state.current = state.current.replace("%val%", ""); // TODO: parse values too
+    state.current = escape_regexp(state.current);
+    state.current = state.current.replaceAll("\\\\s", "\\s");
+    state.current = state.current.replace("%key%", "(.*?)");
+    state.regular_expr = new RegExp(state.current, "g");
+    let result: RegExpExecArray | null;
+    while ((result = state.regular_expr.exec(lang_file_raw)) !== null) {
+        const match = result[1].toString();
+        final[match] = "";
+    }
+    return final;
+}
+
+export async function execute(input: string, options: Options, lang_file_write_stream: WriteStream | null, lang_file_raw?: string) { // write stream is null if output not specified
     const preloaded_lang = await (await import("stopword")).default[options.lang] as string[];
     const added_records = {} as { [key: string]: string };
+    const existing_records = {};
+    if (options.check_for_collisions && lang_file_raw !== undefined)
+        Object.assign(existing_records, parse_lang_file(options.record_format, lang_file_raw));
     let modified_input = input;
     let counter = 0;
 
@@ -140,7 +165,7 @@ export async function execute(input: string, options: Options, lang_file_write_s
             }
             const trailing_whitespace = text.substring(text.indexOf(text.trim()) + text.trim().length);
             let calculated = await calculate_replacement_using_strategy(text);
-            if (calculated == "?") {
+            if (calculated == "?" || calculated in existing_records) {
                 calculated = await calculate_replacement_using_strategy(text, AutomaticNamingMode.Numeric);
             }
             else if (calculated == "-") {
@@ -204,8 +229,14 @@ export async function execute(input: string, options: Options, lang_file_write_s
             }
             return raw;
         };
-        Object.keys(added_records).forEach(x =>
-            push_to_str(`${x.trim()} = ${prepared_value(x)}${NEWLINE}`)); // TODO: allow user to specify the format
+        push_to_str("\n");
+        Object.keys(added_records).forEach(x => {
+            const format = options.record_format
+                .replaceAll("\\s", " ")
+                .replace("%key%", x.trim())
+                .replace("%val%", prepared_value(x));
+            push_to_str(format + "\n");
+        });
         return result.str;
     };
     const buffered_write = (data: any, cb: () => void) => {

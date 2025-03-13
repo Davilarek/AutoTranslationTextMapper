@@ -103,6 +103,21 @@ const options_map = [
             return parseInt(params[0]);
         }
     },
+    {
+        aliases: ["--rformat"],
+        result_key: "record_format",
+        param_count: 1,
+        default: "%key%\\s=\\s%val%",
+        description: "Specifies your language registry file format. Allowed regex symbols: '\\s'.",
+    },
+    {
+        aliases: ["--colcheck"],
+        result_key: "check_for_collisions",
+        param_count: 0,
+        get description() {
+            return `If enabled, your language file will be parsed using format option specified by '${options_map.find(x => x.result_key === "record_format")?.aliases[0]}' and then checked for possible duplicates/collisions.`;
+        },
+    },
 ] as Option[];
 
 function parser(arg: string, rest: string[]) {
@@ -170,11 +185,11 @@ function parse_args(args: string[]) {
         if (opt.default !== undefined) {
             const temp = {};
             if (opt.parse == undefined) {
-                const val = default_parse.call(opt, ...[opt.aliases[0], ...[]]);
+                const val = default_parse.call(opt, ...[opt.aliases[0], ...[opt.default]]);
                 temp[opt.result_key] = val;
             }
             else {
-                const val = opt.parse(...[opt.aliases[0], ...[]]);
+                const val = opt.parse(...[opt.aliases[0], ...[opt.default.toString()]]);
                 temp[opt.result_key] = val;
             }
             Object.assign(parsed_options, temp);
@@ -191,6 +206,7 @@ async function entry() {
     const { input, options } = parsed;
     const state = {
         write_stream: null as WriteStream | null,
+        raw_lang_file: null as string | null,
     };
     if (!existsSync(input)) {
         print_help("Error: input doesn't exist.");
@@ -215,12 +231,19 @@ async function entry() {
         state.write_stream.once("ready", ready.resolve);
         await ready.promise;
     }
+    else if (options.check_for_collisions === true) {
+        print_help(`"${options_map.find(x => x.result_key === "check_for_collisions")?.aliases[0]}" option will not work without valid output path.`);
+        return 1;
+    }
+    if (options.check_for_collisions === true) {
+        state.raw_lang_file = readFileSync(options.output_path, "utf8");
+    }
 
     for (let i = 0; i < targets.length; i++) {
         const file_content = readFileSync(targets[i], "utf8");
-        const new_file_content = await execute(file_content, options, state.write_stream);
+        const new_file_content = await execute(file_content, options, state.write_stream, state.raw_lang_file ?? undefined);
         if (options.write === true) {
-            writeFileSync(targets[i], new_file_content);
+            // writeFileSync(targets[i], new_file_content);
         }
     }
     if (state.write_stream !== null) {

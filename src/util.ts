@@ -102,3 +102,7 @@ export function get_deferred<T = any>() {
 
     return { resolve: resolve!, reject: reject!, promise };
 }
+
+export function escape_regexp(string: string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
