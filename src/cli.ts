@@ -227,8 +227,6 @@ async function entry() {
     const targets = [] as string[];
     if (st.isDirectory()) {
         targets.push(...readdir_recursively(input, true, options.include_expression));
-        console.log(targets);
-        process.exit(1);
     }
     else {
         targets.push(input);
@@ -252,7 +250,7 @@ async function entry() {
         const file_content = readFileSync(targets[i], "utf8");
         const new_file_content = await execute(file_content, options, state.write_stream, state.raw_lang_file ?? undefined);
         if (options.write === true) {
-            // writeFileSync(targets[i], new_file_content);
+            writeFileSync(targets[i], new_file_content);
         }
     }
     if (state.write_stream !== null) {
