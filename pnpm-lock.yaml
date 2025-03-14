@@ -11,6 +11,9 @@ importers:
       '@babel/parser':
         specifier: ^7.26.9
         version: 7.26.9
+      globrex:
+        specifier: ^0.1.2
+        version: 0.1.2
       stopword:
         specifier: ^3.1.4
         version: 3.1.4
@@ -50,6 +53,9 @@ packages:
   '@types/stopword@2.0.3':
     resolution: {integrity: sha512-hioMj0lOvISM+EDevf7ijG8EMbU+J3pj4SstCyfQC1t39uPYpAe7beSfBdU6c1d9jeECTQQtR3UJWtVoUO8Weg==}
 
+  globrex@0.1.2:
+    resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
+
   stopword@3.1.4:
     resolution: {integrity: sha512-RiyU12FwHWX1i42gxhn5sywgpV5mptZTzbHKqKh5wVDWC2Uu+8vKbLv8xxeNa0p29vECbYGLXpDayo54n9+dsg==}
 
@@ -76,6 +82,8 @@ snapshots:
       undici-types: 6.20.0
 
   '@types/stopword@2.0.3': {}
+
+  globrex@0.1.2: {}
 
   stopword@3.1.4: {}
 

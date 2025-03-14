@@ -22,6 +22,7 @@ export type Options = {
     key_length_limit: number;
     record_format: string;
     check_for_collisions: boolean;
+    include_expression: string;
 };
 
 function find_in_ast(body: Statement[], type: Node, first: boolean) {

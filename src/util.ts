@@ -1,9 +1,11 @@
 import { PathLike, readdirSync, lstatSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import globrex from "globrex";
 
-export function readdir_recursively(input: PathLike, only_files: boolean): string[] {
+export function readdir_recursively(input: PathLike, only_files: boolean, glob?: string): string[] {
     let results = [] as string[];
     let stack = [input.toString()] as string[];
+    const regex = glob ? globrex(glob).regex : null;
 
     while (stack.length > 0) {
         const current_path = stack.pop()!;
@@ -15,12 +17,18 @@ export function readdir_recursively(input: PathLike, only_files: boolean): strin
 
             if (stats.isSymbolicLink()) {
                 continue;
-            } else if (stats.isDirectory()) {
+            }
+            const relative_path = relative(input.toString(), full_path);
+            if (stats.isDirectory()) {
                 stack.push(full_path);
             } else if (only_files && stats.isFile()) {
-                results.push(full_path);
+                if (!regex || regex.test(relative_path)) {
+                    results.push(full_path);
+                }
             } else if (!only_files) {
-                results.push(full_path);
+                if (!regex || regex.test(relative_path)) {
+                    results.push(full_path);
+                }
             }
         }
     }

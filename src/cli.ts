@@ -118,6 +118,13 @@ const options_map = [
             return `If enabled, your language file will be parsed using format option specified by '${options_map.find(x => x.result_key === "record_format")?.aliases[0]}' and then checked for possible duplicates/collisions.`;
         },
     },
+    {
+        aliases: ["--include"],
+        result_key: "include_expression",
+        param_count: 1,
+        default: "*.tsx",
+        description: "Specifies expression used to match files specified by your input path."
+    }
 ] as Option[];
 
 function parser(arg: string, rest: string[]) {
@@ -219,7 +226,9 @@ async function entry() {
     const st = statSync(input);
     const targets = [] as string[];
     if (st.isDirectory()) {
-        targets.push(...readdir_recursively(input, true));
+        targets.push(...readdir_recursively(input, true, options.include_expression));
+        console.log(targets);
+        process.exit(1);
     }
     else {
         targets.push(input);

@@ -12,12 +12,13 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@babel/types": "^7.26.9",
     "@types/node": "^22.13.10",
-    "@types/stopword": "^2.0.3",
-    "@babel/types": "^7.26.9"
+    "@types/stopword": "^2.0.3"
   },
   "dependencies": {
     "@babel/parser": "^7.26.9",
+    "globrex": "^0.1.2",
     "stopword": "^3.1.4"
   }
 }
